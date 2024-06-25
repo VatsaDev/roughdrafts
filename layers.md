@@ -24,7 +24,11 @@ All the models are vanilla transformers from the NanoGPT codebase, all of them a
 
 In all configs, the `embd_dim`, `n_head`, `n_layer` can all be represented by $2^x$, which helps with [NN training speed](https://x.com/karpathy/status/1621578354024677377), and making sure the transformer tensor shapes dimensions always being divisible (`assert config.n_embd % config.n_head == 0`, from the `CausalSelfAttention` code)
 
-We can mathematically represent the relation as $\text{embd}^2 \propto \frac{1}{\text{num\_layers}}$, so everytime the `embd_dim` in configs is halved, the number of layers is increased 4x.
+We can mathematically represent the relation as 
+```math
+\text{embd}^2 \propto \frac{1}{\text{num\_layers}}
+```
+so everytime the `embd_dim` in configs is halved, the number of layers is increased 4x.
 
 I haven't shown val losses here, but its evaluated every 250 steps, and it tends to be higher than the train loss by quite a bit ($\approx 0.1-0.2$), but thats also expected with dataset size, the val set can take big chunks from a couple plays.
 

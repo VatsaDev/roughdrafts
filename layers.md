@@ -1,22 +1,3 @@
-<link
-rel="stylesheet"
-href="https://cdn.jsdelivr.net/npm/katex@0.10.0-rc.1/dist/katex.min.css"
-integrity="sha384-D+9gmBxUQogRLqvARvNLmA9hS2x//eK1FhVb9PiU86gmcrBrJAQT8okdJ4LMp2uv"
-crossorigin="anonymous"
-/>
-<script
-src="https://cdn.jsdelivr.net/npm/katex@0.10.0-rc.1/dist/katex.min.js"
-integrity="sha384-483A6DwYfKeDa0Q52fJmxFXkcPCFfnXMoXblOkJ4JcA8zATN6Tm78UNL72AKk+0O"
-crossorigin="anonymous"
-></script>
-<script
-defer
-src="https://cdn.jsdelivr.net/npm/katex@0.10.0-rc.1/dist/contrib/auto-render.min.js"
-integrity="sha384-yACMu8JWxKzSp/C1YV86pzGiQ/l1YUfE8oPuahJQxzehAjEt2GiQuy/BIvl9KyeF"
-crossorigin="anonymous"
-onload="renderMathInElement(document.body);"
-></script>
-
 # Whats better: Neural nets wider with less layers or thinner with more layers
 
 This is just a short, simple blog post describing my experimentation around what I've seen as a common phrase around transformer neural nets, "more layers is better than wider layers".

@@ -53,17 +53,11 @@ Here's the loss graph with each config's losses and final loss:
 Here's the configs themselves, every term is in the $2^x$ format [^2]:
 
 | Config     | `n_head` | `n_layer` | `embd_dim` | Final Train loss | Final Val loss [^3] |
-
 | ---------- | -------- | --------- | ---------- | ---------------- | ------------------- |
-
 | 1 (Purple) | 2        | 1         | 2048       | 1.59             | 1.673               |
-
 | 2 (Blue)   | 2        | 4         | 1024       | 0.84             | 0.953               |
-
 | 3 (Pink)   | 2        | 16        | 512        | 0.95             | 1.103               |
-
 | 4 (Orange) | 4        | 64        | 256        | 1.06             | 1.245               |
-
 | 5 (Red)    | 4        | 256       | 128        | 1.37             | 1.467               |
 
 We can mathematically represent the relation between embd and layers as
@@ -93,17 +87,11 @@ If Meta ever releases L3 400B, that would be interesting in terms of probably ha
 Here's some other data per config:
 
 | Config | Initial loss | time/step | MFU      |
-
 | ------ | ------------ | --------- | -------- |
-
 | 1      | 4.7          | 600ms     | 255%[^4] |
-
 | 2      | 4.2          | 1000ms    | 10%      |
-
 | 3      | 4.4          | 700ms     | 9%       |
-
 | 4      | 4.3          | 750ms     | 7%       |
-
 | 5      | 4.17         | 3000ms    | 2.5%     |
 
 Extra layers have some effect on decreasing the initial loss, but it’s not worth it in comparison to the extra amount of time for initialization per extra layer. Config 1 finished compiling in a minute, but Config 5 took half an hour, and the MFU is ruined with that many layers.

@@ -1,98 +1,133 @@
+Whats better: Neural nets wider with less layers or thinner with more layers:
+
+- [Introduction](#introduction)
+- [Theory](#theory)
+- [Results](#results)
+- [conclusion](#conclusion)
+- [citations](#citations)
+
 # Whats better: Neural nets wider with less layers or thinner with more layers
 
-This is just a short, simple blog post describing my experimentation around what I've seen as a common phrase around transformer neural nets, "more layers is better than wider layers".
+## Introduction
 
-As a disclaimer, I'd like to mention that I'm using nanogpt for the codebase ([github](https://github.com/VatsaDev/layersVdimension) and [kaggle nb](https://www.kaggle.com/code/vatsadev/layersexperiment)), so the FFN size, which is what I'm using to determine width, is $embd^2$, which means FFN width changes do affect my vector dimensionality, but I don't expect this to be too much of an issue, as I'm using tiny shakespeare, which is really sparse data, combined with the fact that in all my configs `embd_dim` never went below 3 digits, so any superposition happening should still happen with most of the effectiveness intact.
+This post is detailing my experiments on whether Transformers with more thin layers are better than Transformers with fewer wide layers. I tested 5 different configurations to come to the final conclusion that a optimal ratio between is the best config, and in my experiments 4 layers with an `embd_dim` of 1024 worked the best.
 
-I also have 4 attention heads instead of two for my last two configs, because pytorch gave me the `sm_80 != sm_90` error, and my best reference online was this one guy on a pytorch issue mentioning attention heads should be a power of 2, so I did 4 because I guess $2^2$ works but $2^1$ doesn't?
+I'm basing the layer width off of [Wide Attention is the way forward for Transformers](https://arxiv.org/abs/2210.00640), which widens the layer through the FFN width, which is part of the MLP.
 
-## Theory on more layers v. wider layers
+The MLPs here are 2 linear layers with a GeLU activation in the middle, both input/output layers have $4*embd^2$ parameters, So widening or thinning out a layer presents has extra effects.
 
-the more layers is better argument begins with the idea that by having more layers, you can have more, deeper representations of an idea, and I don't think anyone can argue against this, its foundational in Mechanistic Interprebility, like Anthropic's [visualizing features](https://distill.pub/2017/feature-visualization/), or the [Diffusion lens](https://arxiv.org/abs/2403.05846) paper.
+That extra effect is the curse of dimensionality, or how changing the `embd_dim` values changes the sizes of input and intermediate vectors, which changes how much a model can learn.
+
+I don't think that this is a big issue, considering that tiny shakespeare is a small dataset and all my vectors are at least at a value over 100, the model can superposition the data just fine.
+
+I had one error which resulted in me having to use a different `n_head` value, the `sm_80 != sm_90`, which fixes for transformers when the number of heads is a power of 2, and 2 heads decided to not work for the last two configs, but 4 heads did.
+
+The code is avalible at this [github repo](https://github.com/VatsaDev/layersVdimension), and I used this [Kaggle nb](https://www.kaggle.com/code/vatsadev/layersexperiment) to run experiments.
+
+## Theory
+
+More Layers is better comes from the evidence that with more layers, you can have deeper representations. Popular examples include Anthropic's [visualizing features](https://distill.pub/2017/feature-visualization/), or the [Diffusion lens](https://arxiv.org/abs/2403.05846) paper.
 
 ![Feature sophistication](images/features.png)
 ![layer representations](images/layersDetail.png)
 _Some examples of the more layers = more sophisticated representation argument_
 
-This argument later evolved into many people I've interacted with thinking that in a parameter equivalent setting, more layers would be better. I didn't necessarily think that would be true, mostly a gut feeling, but also that lowering the parameters per MLP in favor of more of them would have a detrimental effect.
+Many took that to mean picking layers over layer width in most cases, but I don't think that would work at all. The more layers only work because there's more MLPs there.
 
-My intuition leads me to begin with the hypothesis that the ideal config is going to be a balanced ratio between `n_layer` and `embd_dim`, probably with less than 10 layers for the 50m range, and a dimensionality of greater than a 1000.
+Trading the parameters of MLPs for more smaller MLPs would have a detrimental effect at some point, and these experiments give out an idea of where.
 
-## Training runs with parameter equivalent transformers
+## Results
 
-All the models are vanilla transformers from the NanoGPT codebase, all of them are parameter equivalent at 50 million parameters (Number comes from the largest 1 layer config that fit on my gpu). Everything here is trained from scratch. 
+All the models are vanilla transformers, each config is parameter equivalent (50M parameters), All trained from scratch. Each run is terminated if overfitting [^1]
 
-In all configs, the `embd_dim`, `n_head`, `n_layer` can all be represented by $2^x$, which helps with [NN training speed](https://x.com/karpathy/status/1621578354024677377), and making sure the transformer tensor shapes dimensions always being divisible (`assert config.n_embd % config.n_head == 0`, from the `CausalSelfAttention` code)
-
-We can mathematically represent the relation as 
-```math
-\text{embd}^2 \propto \frac{1}{\text{num\_layers}}
-```
-so everytime the `embd_dim` in configs is halved, the number of layers is increased 4x.
-
-I haven't shown val losses here, but its evaluated every 250 steps, and it tends to be higher than the train loss by quite a bit ($\approx 0.1-0.2$), but thats also expected with dataset size, the val set can take big chunks from a couple plays.
-
-Each run was terminated at a point where overfitting was shown (Val loss increasing for over 3 eval steps (1 eval step every 250 steps), or 750 steps)
-
-Before you look at all the configs, look at the loss chart:
+Heres the loss graph with each config losses and final loss:
 
 ![Loss chart on different configs](images/layersGraph.png)
 
-Now look at the config definitions:
+Heres the configs themselves, every term is in the $2^x$ format [^2]:
 
- - Config 1 (Purple):
-     - `embd_dim` 2048, `n_head` 2, `n_layer` 1
- - Config 2 (Blue)
-     - `embd_dim` 1024, `n_head` 2, `n_layer` 4
- - Config 3 (Pink)
-     - `embd_dim` 512, `n_head` 2, `n_layer` 16
- - Config 4 (Orange)
-     - `embd_dim` 256, `n_head` 4, `n_layer` 64
- - Config 5 (Red)
-     - `embd_dim` 128, `n_head` 4, `n_layer` 256
+| Config     | `n_head` | `n_layer` | `embd_dim` | Final Train loss | Final Val loss [^3] |
+| ---------- | -------- | --------- | ---------- | ---------------- | ------------------- |
+| 1 (Purple) | 2        | 1         | 2048       | 1.59             | 1.673               |
+| 2 (Blue)   | 2        | 4         | 1024       | 0.84             | 0.953               |
+| 3 (Pink)   | 2        | 16        | 512        | 0.95             | 1.103               |
+| 4 (Orange) | 4        | 64        | 256        | 1.06             | 1.245               |
+| 5 (Red)    | 4        | 256       | 128        | 1.37             | 1.467               |
 
-The best loss comes from Config 2, which was what my hypothesis predicted. The best results come from models with a balance between `n_layer` and `embd_dim`
+We can mathematically represent the relation between embd and layers as
 
-Another of thinking of it like the optimum of the loss function in a basic NN:
+```math
+\text{embd}^2 \propto \frac{1}{\text{n\_layers}}
+```
 
-![optimum chart of the values](images/optimumGraph.png)
+So every halving of the `embd_dim` is a 4x increase for `n_layers`
 
-Config 2 had enough of an embedding dim to learn the data's features, but also enough layers to make more representations and generalize better.
+Another way to represnt the configs is this:
 
-A good example of Config 2 at scale is probably Llama 3 8b, which has an embd_dim 4096 with a vocab_size 128k and 32 layers, enough to superposition and learn the features of 15 trillion tokens, probably the most fed to any model barring GPT-4 and claude's 3/3.5 series. Theres also 32 layers, which is probably enough to a decent amount of internal representations around 15T tokens, but Llama 3 70b probably froms many more, considering it has 80 layers
+![Embd vs loss](images/optimumGraph.png)
 
-## Other observances around these training runs
+A Comparing embd_dim vs loss, you see that the best spot is the balanced config, with a couple layers and a medium sized `embd_dim`
 
-Here are some other observations I made not really visible on the graph, or mentioned earlier 
+A good example of Config 2 at scale is probably Llama 3 8b, which has an embd_dim 4096 and a vocab_size 128k, with 32 layers.
 
-with higher layer counts, initial loss would improve:
- - Config 1 had an Initial loss of 4.7
- - Config 2 at 4.2
- - Config 5 at 4.17
+The embd_dim is high enough to learn lots of the 15 trillion tokens of data it was fed, while 32 layers is enough to make some good internal representations of that data.
 
-It is diminishing returns, but probably feels huge at the L3 8b vs L3 70b scale
+Llama 3 70b is the even better version, with 80 layers to make representations with, this model is the one really making use of the 15 trillion tokens. 
 
-The Different configs varied for time per step:
- - config 1: 600ms
- - config 2: 1000ms
- - config 3: 700ms
- - config 4: 750ms
- - config 5: 600ms
+If Meta ever releases L3 400B, that would be intresting in terms of probably having 100+ layers, wonder if it has too many layers for its embedding dimensions.
 
-I also found that increasing layers rather than width greatly increases initialization time, ex. Config 1's `torch.compile` took around a minute, but config 5's took half an hour. 
+Here's some other data per config:
 
-Also MFU is layer correlated (mfu on a t4, assuming peak at 65 TFlops as everywhere reports)
- - config 1: 255% mfu (I genuinly do not know what happened here)
- - config 2: 10% mfu
- - config 3: 9% mfu
- - config 4: 7%
- - config 5: 2.5% mfu
+| Config | Initial loss | time/step | MFU      |
+| ------ | ------------ | --------- | -------- |
+| 1      | 4.7          | 600ms     | 255%[^4] |
+| 2      | 4.2          | 1000ms    | 10%      |
+| 3      | 4.4          | 700ms     | 9%       |
+| 4      | 4.3          | 750ms     | 7%       |
+| 5      | 4.17         | 3000ms    | 2.5%     |
 
+Extra layers has some effects on decreasing initial loss, but its not worth it in comparison to the extra amount of time to initialization per extra layer. Config 1 finished compiling in a minute, but Config 5 took half an hour, and the MFU is ruined with that many layers.
 
-I also expected a diff outcome from the extra attention heads, but adding more heads did nothing for loss, configs 4 and 5 aren't that different from the others.
+I expected the 4 attention heads to help with loss, but they had a mediocre comparative loss against the 2 head models.
 
 ## Conclusion
 
-The experiments suggest that a balanced ratio between embedding dimension and number of layers yields optimal performance in parameter-equivalent transformer models. Future work could explore this relationship across different model scales, datasets, and architectures, or investigate how the optimal balance shifts with increasing model size and computational resources.
+The experiments show that finding a balance in Transformer models, with a moderate number of layers and an intermediate embedding dimension, works best. Testing five different setups, each with 50 million parameters, revealed that a model with four layers and an embedding dimension of 1024 (Config 2) had the lowest final validation loss. While deeper models can give more detailed feature representations, adding too many layers, as seen in Configs 4 and 5, leads to diminishing returns and higher computational costs without much improvement. The results highlight the need to strike a good balance between layer depth and width for better efficiency and performance.
 
-Personally I'd find these results for SSMs like RWKV/Mamba intresting, consider their "state space representations"
+## Citations
+
+```tex
+@misc{brown2022wideattentionwayforward,
+      title={Wide Attention Is The Way Forward For Transformers?},
+      author={Jason Ross Brown and Yiren Zhao and Ilia Shumailov and Robert D Mullins},
+      year={2022},
+      eprint={2210.00640},
+      archivePrefix={arXiv},
+      primaryClass={cs.LG}
+      url={https://arxiv.org/abs/2210.00640},
+}
+
+@article{olah2017feature,
+  author = {Olah, Chris and Mordvintsev, Alexander and Schubert, Ludwig},
+  title = {Feature Visualization},
+  journal = {Distill},
+  year = {2017},
+  note = {https://distill.pub/2017/feature-visualization},
+  doi = {10.23915/distill.00007}
+}
+
+@misc{toker2024diffusionlensinterpretingtext,
+      title={Diffusion Lens: Interpreting Text Encoders in Text-to-Image Pipelines},
+      author={Michael Toker and Hadas Orgad and Mor Ventura and Dana Arad and Yonatan Belinkov},
+      year={2024},
+      eprint={2403.05846},
+      archivePrefix={arXiv},
+      primaryClass={cs.CV}
+      url={https://arxiv.org/abs/2403.05846},
+}
+```
+
+[^1]: overfitting is determind by the checking val loss over 750 steps, if its increasing or remaining the same over time while train loss drops, its considered overfit and terminated
+[^2]: Everything is a power of 2, for both [NN training speed](https://x.com/karpathy/status/1621578354024677377), and during tensor initialization everything is divisible.
+[^3]: Val loss was evaluated every 250 steps, and tends to remain a decent amount higher than train loss the whole time ($\approx 0.1-0.2$), but thats most likely due to the Val loss taking up specific parts shakespeare plays during shuffles, small dataset issue.
+[^4]: I genuinly have no idea what happened here, but I was using the 65 TFLOP fp16 value on a T4 gpu, and this is what I got.

@@ -1,28 +1,16 @@
-Whats better: Neural nets wider with less layers or thinner with more layers:
+# Whats better: Neural nets wider with less layers or thinner with more layers
 
 - [Introduction](#introduction)
-
 - [Theory](#theory)
-
 - [Results](#results)
-
 - [conclusion](#conclusion)
-
 - [citations](#citations)
-
-# Whats better: Neural nets wider with less layers or thinner with more layers
 
 ## Introduction
 
 This post details my experiments on whether Transformers with more thin layers are better than Transformers with fewer wide layers. I tested 5 different configurations to conclude that an optimal ratio between is the best config, and in my experiments, 4 layers with an `embd_dim` of 1024 worked the best.
 
-I'm basing the layer width off of [Wide Attention is the way forward for Transformers](https://arxiv.org/abs/2210.00640), which widens the layer through the FFN width, which is part of the MLP.
-
-The MLPs here are 2 linear layers with a GeLU activation in the middle, both input/output layers have $4*embd^2$ parameters, So widening or thinning out a layer has extra effects.
-
-That extra effect is the curse of dimensionality, or how changing the `embd_dim` values changes the sizes of the input and intermediate vectors, which changes how much a model can learn.
-
-I don't think that this is a big issue, considering that tiny shakespeare is a small dataset and all my vectors are at least at a value over 100, the model can superposition the data just fine.
+I'm basing the layer width off of [Wide Attention is the way forward for Transformers](https://arxiv.org/abs/2210.00640), which widens the layer through the FFN width, which is part of the MLP. The MLPs here are 2 linear layers with a GeLU activation in the middle, both input/output layers have $4*embd^2$ parameters, So widening or thinning out a layer has extra effects, and that extra effect is the curse of dimensionality, or how changing the `embd_dim` values changes the sizes of the input and intermediate vectors, which changes how much a model can learn, but I don't think that this is a big issue, considering that tiny shakespeare is a small dataset and all my vectors are at least at a value over 100, the model can superposition the data just fine.
 
 I had one error that resulted in me having to use a different `n_head` value, the `sm_80 != sm_90`, which fixes for transformers when the number of heads is a power of 2, and 2 heads decided to not work for the last two configs, but 4 heads did.
 
